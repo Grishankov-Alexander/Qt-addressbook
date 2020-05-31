@@ -1,4 +1,7 @@
 #include "addresswidget.h"
+#include "adddialog.h"
+
+#include <QtWidgets>
 
 AddressWidget::AddressWidget(QWidget *parent)
     : QTabWidget(parent)
@@ -44,5 +47,117 @@ void AddressWidget::setupTabs()
         });
 
         addTab(tableView, str);
+    }
+}
+
+void AddressWidget::showAddEntryDialog()
+{
+    AddDialog aDialog;
+    if (aDialog.exec()) {
+        QString name = aDialog.nameText->text();
+        QString address = aDialog.addressText->toPlainText();
+        addEntry(name, address);
+    }
+}
+
+void AddressWidget::addEntry(QString name, QString address)
+{
+    if (!table->getContacts().contains({ name, address })) {
+        table->insertRows(0, 1, QModelIndex());
+        QModelIndex index = table->index(0, 0, QModelIndex());
+        table->setData(index, name, Qt::EditRole);
+        index = table->index(0, 1, QModelIndex());
+        table->setData(index, address, Qt::EditRole);
+        removeTab(indexOf(newAddressTab));
+    } else {
+        QMessageBox::information(this, tr("Duplicate Name"),
+                                 tr("The name \"%1\" already exists.").arg(name));
+    }
+}
+
+void AddressWidget::editEntry()
+{
+    QTableView *temp = static_cast<QTableView *>(currentWidget());
+    QSortFilterProxyModel *proxy = static_cast<QSortFilterProxyModel *>(temp->model());
+    QItemSelectionModel *selectionModel = temp->selectionModel();
+
+    QModelIndexList indexes = selectionModel->selectedRows();
+    QString name;
+    QString address;
+    int row = -1;
+
+    foreach (QModelIndex index, indexes) {
+        row = proxy->mapToSource(index).row();
+        QModelIndex nameIndex = table->index(row, 0, QModelIndex());
+        QVariant varName = table->data(nameIndex, Qt::DisplayRole);
+        name = varName.toString();
+
+        QModelIndex addressIndex = table->index(row, 1, QModelIndex());
+        QVariant varAddr = table->data(addressIndex, Qt::DisplayRole);
+        address = varAddr.toString();
+    }
+
+    AddDialog aDialog;
+    aDialog.setWindowTitle(tr("Edit a Contact"));
+    aDialog.nameText->setReadOnly(true);
+    aDialog.nameText->setText(name);
+    aDialog.addressText->setText(address);
+
+    if (aDialog.exec()) {
+        QString newAddress = aDialog.addressText->toPlainText();
+        if (newAddress != address) {
+            QModelIndex index = table->index(row, 1, QModelIndex());
+            table->setData(index, newAddress, Qt::EditRole);
+        }
+    }
+}
+
+void AddressWidget::removeEntry()
+{
+    QTableView *temp = static_cast<QTableView *>(currentWidget());
+    QSortFilterProxyModel *proxy = static_cast<QSortFilterProxyModel *>(temp->model());
+    QItemSelectionModel *selectionModel = temp->selectionModel();
+
+    QModelIndexList indexes = selectionModel->selectedRows();
+
+    foreach (QModelIndex index, indexes) {
+        int row = proxy->mapToSource(index).row();
+        table->removeRows(row, 1, QModelIndex());
+    }
+
+    if (table->rowCount(QModelIndex()) == 0) {
+        insertTab(0, newAddressTab, "Address Book");
+    }
+}
+
+void AddressWidget::writeToFile(const QString &fileName)
+{
+    QFile file(fileName);
+    if (!file.open(QIODevice::WriteOnly)) {
+        QMessageBox::information(this, tr("unable to open file"), file.errorString());
+        return;
+    }
+    QDataStream out(&file);
+    out << table->getContacts();
+}
+
+void AddressWidget::readFromFile(const QString &fileName)
+{
+    QFile file(fileName);
+    if (!file.open(QIODevice::ReadOnly)) {
+        QMessageBox::information(this, tr("Unable to open file"),
+                                 file.errorString());
+        return;
+    }
+    QList<Contact> contacts;
+    QDataStream in(&file);
+    in >> contacts;
+
+    if (contacts.isEmpty()) {
+        QMessageBox::information(this, tr("No contacts in file"),
+                                 tr("The file you are attempting to open contains no contacts"));
+    } else {
+        for (const auto &contact: qAsConst(contacts))
+            addEntry(contact.name, contact.address);
     }
 }

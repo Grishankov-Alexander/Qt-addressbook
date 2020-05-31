@@ -1,6 +1,8 @@
 #ifndef TABLEMODEL_H
 #define TABLEMODEL_H
 
+#include <QAbstractTableModel>
+#include <QList>
 
 struct Contact {
     QString name;
@@ -8,7 +10,7 @@ struct Contact {
     
     bool operator==(const Contact &other) const
     {
-        return name = other.name && address == other.address;
+        return name == other.name && address == other.address;
     }
 };
 
@@ -28,7 +30,7 @@ class TableModel : public QAbstractTableModel
     Q_OBJECT
     
 public:
-    TableModel(Q_Object* parent = nullptr);
+    TableModel(QObject* parent = nullptr);
     TableModel(QList<Contact> contacts, QObject *parent = nullptr);
     
     int rowCount(const QModelIndex &parent) const override;

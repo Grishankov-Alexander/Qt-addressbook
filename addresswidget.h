@@ -1,6 +1,17 @@
 #ifndef ADDRESSWIDGET_H
 #define ADDRESSWIDGET_H
 
+#include "newaddresstab.h"
+#include "tablemodel.h"
+
+#include <QItemSelection>
+#include <QTabWidget>
+
+QT_BEGIN_NAMESPACE
+class QSortFilterProxyModel;
+class QItemSelectionModel;
+QT_END_NAMESPACE
+
 
 class AddressWidget : public QTabWidget
 {
